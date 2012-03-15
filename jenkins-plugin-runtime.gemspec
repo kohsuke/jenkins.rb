@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Charles Lowell"]
   s.email       = ["cowboyd@thefrontside.net"]
-  s.homepage    = "http://github.com/cowboyd/jenkins-plugin-runtime"
+  s.homepage    = "http://github.com/cowboyd/jenkins-plugins.rb"
   s.summary     = %q{Runtime support libraries for Jenkins Ruby plugins}
   s.description = %q{I'll think of a better description later, but if you're reading this, then I haven't}
 
@@ -24,6 +24,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency "rake", "0.8.7"
   s.add_development_dependency "rspec", "~> 2.0"
   s.add_development_dependency "rspec-spies"
-  s.add_development_dependency "jenkins-war", "~> 1.445"
+  s.add_development_dependency "jenkins-war"
 
 end

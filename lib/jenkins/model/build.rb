@@ -3,9 +3,9 @@ require 'jenkins/filepath'
 module Jenkins
   module Model
 
-    # Represents a single build. This object is passed in to
-    # all build steps, and can be used to configure, halt, message
-    # the current running build.
+    ##
+    # Represents a single build. In general, you won't need this
+    #
     class Build
 
       # Raised to indicate that a build wrapper halted a build.
@@ -16,24 +16,9 @@ module Jenkins
       # the Hudson::Model::AbstractBuild represented by this build
       attr_reader :native
 
-      # Hash of environment variables that will be added to each process
-      # started as part of this build. E.g.
-      #
-      # build.env['GEM_HOME'] = '/path/to/my/gem/home'
-      #
-      # Note that this is not an exhaustive list of all environement variables,
-      # only those which have been explicitly set by code inside this Ruby
-      # plugin.
-      #
-      # Also, this list does not contain variables that might get set by things
-      # like .profile and .rc files.
-      attr_reader :env
-
-      def initialize(native)
+      def initialize(native = nil)
         @native = native
         @variables = {}
-        @env = {}
-        @native.buildEnvironments.add(EnvironmentVariables.new(@env))
       end
 
       # Gets a build value. Each build stores a map of key,value
@@ -55,8 +40,6 @@ module Jenkins
         @variables[key.to_s] = value
       end
 
-      # The workspace associated with this build
-      # @return [Jenkins::FilePath] workspace
       def workspace
         FilePath.new(@native.getWorkspace())
       end
@@ -75,24 +58,18 @@ module Jenkins
         raise Java.hudson.AbortException.new(reason)
       end
 
-      class EnvironmentVariables < Java.hudson.model.Environment
-        def initialize(variables)
-          super()
-          @variables = variables
-        end
-
-        def buildEnvVars(map)
-          @variables.each do |key,value|
-            map.put(key.to_s.upcase, value.to_s)
-          end
-        end
+      def build_var
+        @native.getBuildVariables()
       end
 
-      # Until the accessor gets into mainline, we
-      # add directly to the protected field
-      # @see https://github.com/jenkinsci/jenkins/commit/8cd23888b4f07efaa5bb499ad599375ca67b9146
-      Java.hudson.model.AbstractBuild.class_eval do
-        field_accessor :buildEnvironments
+      def env
+        @native.getEnvironment(nil)
+      end
+
+      def build_wrapper_environment(cls)
+        @native.getEnvironmentList().find do |e|
+          e.instance_of?(Jenkins::Plugin::Proxies::EnvironmentWrapper) && e.build_wrapper.instance_of?(cls)
+        end
       end
 
       Jenkins::Plugin::Proxies.register self, Java.hudson.model.AbstractBuild

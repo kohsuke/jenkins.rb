@@ -100,7 +100,7 @@ module Jenkins
       # Java object. In other words, it will not be garbage collected
       # until the Java object is.
       #
-      # This behavior is important for things like AbstractBuild objects. We
+      # This behavior is important for things like AbstractBuild objxects. We
       # don't want our Ruby `Build` object that corresponds to it to be GC'd
       # until the `hudson.model.AbstractBuild` it represents is itself
       # collected. That allows us to maintain state on the Ruby object, and know
@@ -167,6 +167,9 @@ module Jenkins
 end
 
 require 'jenkins/model/describable'
-["action", "build_wrapper", "builder", "publisher", "root_action"].each do |proxy|
+["action", "build_wrapper", "builder", "publisher", "root_action",
+ "_item_listener", "_queue_task_dispatcher", "_queue_decision_handler",
+ "_computer_listener", "_transient_view_action_factory",
+ "_aperiodic_work", "_async_aperiodic_work", "_periodic_work", "_async_periodic_work"].each do |proxy|
   require "jenkins/plugin/proxies/#{proxy}"
 end
