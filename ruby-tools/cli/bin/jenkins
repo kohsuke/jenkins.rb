@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+require 'jenkins'
+require 'jenkins/cli'
+
+begin
+  Jenkins::CLI.start
+rescue Errno::ECONNREFUSED, Errno::EAFNOSUPPORT
+  Jenkins::CLI.new.shell.say "No connection available to the server.", :red
+end

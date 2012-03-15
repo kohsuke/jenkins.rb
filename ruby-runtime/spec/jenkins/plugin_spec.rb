@@ -2,8 +2,25 @@ require 'spec_helper'
 require 'tmpdir'
 
 describe Jenkins::Plugin do
-  it "is unbelievable that I don't have a spec for this class" do
-    Jenkins::Plugin.instance_method(:initialize).should_not be_nil
+
+  describe Jenkins::Plugin::Lifecycle do
+    before do |variable|
+      @plugin = Jenkins::Plugin.new mock(:name => 'org.jenkinsci.ruby.RubyPlugin')
+      @plugin.on.start do |plugin|
+        @start = plugin
+      end
+      @plugin.on.stop do |plugin|
+        @stop = plugin
+      end
+      @plugin.start
+      @plugin.stop
+    end
+    it "gets a callback on start" do
+      @start.should be @plugin
+    end
+    it "gets a callback on stop" do
+      @stop.should be @plugin
+    end
   end
 
   describe "when plugin loads models" do

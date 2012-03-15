@@ -28,6 +28,17 @@ module Jenkins
     # the instance of jenkins.ruby.RubyPlugin with which this Plugin is associated
     attr_reader :peer
 
+    # Add listeners for things that might happen to a plugin. E.g.
+    #
+    #     plugin.on.start do |plugin|
+    #       #do some setup
+    #     end
+    #     plugin.on.stop do |plugin|
+    #       #do some teardown
+    #     end
+    # @return [Lifecycle]
+    attr_reader :on
+
     # Initializes this plugin by reading the models.rb
     # file. This is a manual registration process
     # Where ruby objects register themselves with the plugin
@@ -40,6 +51,7 @@ module Jenkins
       @start = @stop = proc {}
       @descriptors = {}
       @proxies = Proxies.new(self)
+      @on = Lifecycle.new
     end
 
     # Initialize the singleton instance that will run for a
@@ -88,7 +100,7 @@ module Jenkins
     # @param [...] arguments to pass to
 
     def register_extension(class_or_instance, *args)
-      extension = class_or_instance.is_a?(Class) ? class_or_instance.new : class_or_instance
+      extension = class_or_instance.is_a?(Class) ? class_or_instance.new(*args) : class_or_instance
       @peer.addExtension(export(extension))
     end
 
@@ -98,12 +110,18 @@ module Jenkins
     # This method is invoked automatically as part of the auto-registration
     # process, and should not need to be invoked by plugin code.
     #
-    # @param [Class] ruby_class the class implementing the extension point
-    # @param [java.lang.Class] java_class that Jenkins will see this extention point as
-    def register_describable(ruby_class, java_class)
-      descriptor = Jenkins::Model::Descriptor.new(ruby_class, self, java_class)
-      @descriptors[ruby_class] = descriptor
-      @peer.addExtension(descriptor)
+    # Classes including `Describabble` will be autoregistered in this way.
+    #
+    # @param [Class] describable_class the class implementing the extension point
+    # @see [Model::Describable]
+    def register_describable(describable_class)
+      on.start do
+        fail "#{describable_class} is not an instance of Describable" unless describable_class < Model::Describable
+        descriptor_class = describable_class.descriptor_is || Jenkins::Model::Descriptor
+        descriptor = descriptor_class.new(describable_class, self, describable_class.describe_as_type.java_class)
+        @descriptors[describable_class] = descriptor
+        register_extension(descriptor)
+      end
     end
 
     # unique identifier for this plugin in the Jenkins server
@@ -115,14 +133,14 @@ module Jenkins
     # currently does nothing, but plugin startup hooks would
     # go here.
     def start
-      @start.call()
+      @on.fire(:start, self)
     end
 
     # Called one by Jenkins (via RubyPlugin) when this plugin
     # is shut down. Currently this does nothing, but plugin
     # shutdown hooks would go here.
     def stop
-      @stop.call()
+      @on.fire(:stop, self)
     end
 
     # Reflect an Java object coming from Jenkins into the context of this plugin
@@ -156,6 +174,12 @@ module Jenkins
       @proxies.linkout internal, external
     end
 
+    # Load all of the Ruby code associated with this plugin. For
+    # historical purposes this is called "models", but really
+    # it should be something like extensions ext/ or maybe it's
+    # just one file associated with the plugin itself. Who knows?
+    # The jury is definitely still out on the best way to discover
+    # and load extension points.
     def load_models
       path = @java.getModelsPath().getPath()
       # TODO: can we access to Jenkins console logger?
@@ -188,5 +212,42 @@ module Jenkins
         load_file_in_dir(dir)
       end
     end
+
+    class Lifecycle
+      def initialize
+        @start = []
+        @stop = []
+      end
+
+      def start(&block)
+        @start << block if block
+      end
+
+      def stop(&block)
+        @stop << block if block
+      end
+
+      def fire(event, *args)
+        if listeners = instance_variable_get("@#{event}")
+          listeners.each do |l|
+            callback(l, *args)
+          end
+        end
+      end
+      def callback(listener, *args)
+        listener.call(*args)
+      rescue Exception => e
+        warn "#{e.class}: #{e.message}\n#{e.backtrace.join("\n")}"
+      end
+    end
+  end
+
+  # Make the singleton instance available from the top-level
+  # namespace
+  #
+  #     Jenkins.plugin
+  # @see [Jenkins::Plugin.instance]
+  def self.plugin
+    self::Plugin.instance
   end
 end

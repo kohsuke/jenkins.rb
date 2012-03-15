@@ -10,11 +10,12 @@ module Jenkins
     #
     # This module provides common functionality for all proxies.
     module Proxy
-      def self.included(mod)
-        super
-        mod.extend(Marshal)
-        mod.send(:include, Unmarshal)
-        mod.send(:include, Customs)
+      extend Plugin::Behavior
+
+      implemented do |cls|
+        cls.class_eval do
+          include Java.org.kohsuke.stapler.StaplerProxy
+        end
       end
 
       # Every Proxy object has a reference to the plugin to which it belongs, as well as the
@@ -22,16 +23,27 @@ module Jenkins
       #
       # @param [Jenkins::Plugin] plugin the plugin from whence this proxy object came
       # @param [Object] object the implementation to which this proxy will delegate.
-      def initialize(plugin, object)
-        super() if defined? super
+      # @param super_args               pass through arguments to the super type
+      def initialize(plugin, object, *super_args)
+        super(*super_args) if defined? super
         @plugin, @object = plugin, object
         @pluginid = @plugin.name
       end
 
       # tell Stapler to go look for views from the wrapped object
-      include Java.org.kohsuke.stapler.StaplerProxy
       def getTarget
         @object
+      end
+
+      # Used to specify which Ruby class this will act as a proxy
+      module ProxyFor
+        # register this class as a proxy for `internal_class`. Jenkins
+        # will auto-create instances of this class when passing to
+        # ruby and vice-versa
+        def proxy_for(internal_class)
+          fail "not a ruby class" unless internal_class.is_a? Class
+          Jenkins::Plugin::Proxies.register internal_class, self
+        end
       end
 
       # Make sure that proxy classes do not try to persist the plugin parameter.
@@ -76,6 +88,16 @@ module Jenkins
         def export(object)
           @plugin.export(object)
         end
+      end
+
+      module ClassMethods
+        include Marshal
+        include ProxyFor
+      end
+
+      module InstanceMethods
+        include Unmarshal
+        include Customs
       end
     end
   end

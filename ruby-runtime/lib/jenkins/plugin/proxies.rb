@@ -69,6 +69,8 @@ module Jenkins
       # Reflect a native Ruby object into its External Java form.
       #
       # Try to find a suitable form for this object and if one is found then decorate it.
+      # If the object already is a java.lang.Object, then just let it pass through.
+      #
       # @param [Object] object the ruby object that is being exported to Java
       # @return [java.lang.Object] the Java wrapper that provides an interface to `object`
       # @throw [ExportError] if no suitable Java representation can be found
@@ -78,6 +80,9 @@ module Jenkins
         end
 
         cls = object.class
+        if cls.respond_to? :java_class
+          return object
+        end
         while cls do
           if external_class = @@intcls2extcls[cls]
             external = external_class.new(@plugin, object)
@@ -149,7 +154,7 @@ module Jenkins
       # that links can be built automatically.
       #
       # @param [Class] internal_class the Ruby class
-      # @param [java.lang.Class] external_class the Java class on the othe side of this link.
+      # @param [java.lang.Class] external_class the Java class on the other side of this link.
       def self.register(internal_class, external_class)
         @@intcls2extcls[internal_class] = external_class
         @@extcls2intcls[external_class] = internal_class
@@ -172,4 +177,8 @@ require 'jenkins/model/describable'
  "_computer_listener", "_transient_view_action_factory",
  "_aperiodic_work", "_async_aperiodic_work", "_periodic_work", "_async_periodic_work"].each do |proxy|
   require "jenkins/plugin/proxies/#{proxy}"
+end
+
+["cli/command"].each do |proxy|
+  require "jenkins/#{proxy}_proxy"
 end

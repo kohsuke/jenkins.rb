@@ -5,6 +5,7 @@ describe Jenkins::Model::Build do
 
   before :each do
     @native = mock("AbstractBuild")
+    @native.stub(:buildEnvironments).and_return(java.util.ArrayList.new)
     @build = Jenkins::Model::Build.new(@native)
   end
 
@@ -54,6 +55,23 @@ describe Jenkins::Model::Build do
 
     it "has symbol/string indifferent access" do
       @build[:val].should be @val
+    end
+  end
+
+  describe "environment variables" do
+    before do
+      pending "we need to get some full stack testing for this to fully work"
+      @build.env['FOO'] = 'bar'
+      @build.env[:bar] = :baz
+      @vars = @native.getEnvironment(nil)
+    end
+
+    it "sets environment variables into the native build environment" do
+      @vars.get('FOO').should eql 'bar'
+    end
+
+    it "capitalizes and stringifies keys and stringifies values" do
+      @vars.get('BAR').should eql 'baz'
     end
   end
 

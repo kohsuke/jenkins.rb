@@ -3,8 +3,13 @@ require 'json'
 
 module Jenkins
   module Model
-    class Descriptor < Java.hudson.model.Descriptor
-
+    #
+    # Jenkins typically defines one Descriptor subtype per extension point, and
+    # in Ruby we want to subtype those to add Ruby-specific behaviours.
+    #
+    # This class captures commonality of such "Ruby-specific behaviours" across different Descriptors
+    # so it can be mixed into the Descriptor subtypes
+    module RubyDescriptor
       def initialize(impl, plugin, java_type)
         super(java_type)
         @impl, @plugin, @java_type = impl, plugin, java_type
@@ -20,6 +25,11 @@ module Jenkins
 
       def getT()
         @java_type
+      end
+
+      # let Jenkins use our Ruby class for resource lookup and all
+      def getKlass()
+        @plugin.peer.klassFor(@impl)
       end
 
       # we take a fully-qualified class name, like Abc::Def::GhiJkl to underscore-separated tokens, like abc/def/ghi_jkl
@@ -52,6 +62,7 @@ module Jenkins
       def construct(attrs)
         @impl.new(attrs)
       rescue ArgumentError
+        # TODO: this automatic rescue can mask a user-problem in the constructor
         @impl.new
       end
 
@@ -67,5 +78,8 @@ module Jenkins
       end
     end
 
+    class Descriptor < Java.hudson.model.Descriptor
+      include RubyDescriptor
+    end
   end
 end

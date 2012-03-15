@@ -19,6 +19,7 @@ module Jenkins
     #     class Builder
     #       include Jenkins::Model::Describable
     #       describe_as Java.hudson.tasks.Builder
+    #       descriptor_is Jenkins::Tasks::BuildStepDescriptor
     #     end
     #
     # behind the scenes, this creates a `Descriptor` instance registered against the java type
@@ -28,48 +29,43 @@ module Jenkins
     # This class should generally not be needed by plugin authors since it is part of the
     # glue layer and not the public runtime API.
     module Describable
+      extend Plugin::Behavior
       DescribableError = Class.new(StandardError)
 
+      implemented do |cls|
+        Jenkins.plugin.register_describable cls if Jenkins.plugin
+      end
+
       module DescribeAs
-        def describe_as cls
-          if defined?(cls.java_class) && cls.is_a?(Class)
-            @describe_as_type = cls.java_class
-          else
+
+        # Java class that represents the extension point, which gets eventually set to Descriptor.clazz
+        # :with will use this java class as the type of descriptor.
+        def describe_as cls, options = {}
+          @describe_as_type = verify_java_class(cls)
+          @descriptor_is = verify_java_class(options[:with]) if options[:with]
+        end
+
+        def describe_as_type
+          @describe_as_type ? @describe_as_type : (superclass.describe_as_type if superclass.respond_to?(:describe_as_type))
+        end
+
+        def descriptor_is
+          @descriptor_is ? @descriptor_is : (superclass.descriptor_is if superclass.respond_to?(:descriptor_is))
+        end
+
+        private
+
+        def verify_java_class cls
+          if !defined?(cls.java_class) || !cls.is_a?(Class)
             fail DescribableError, "#{cls.class.inspect} is not an instance of java.lang.Class"
           end
-        end
-        def describe_as_type
-          @describe_as_type
+          cls
         end
       end
 
-      # When a Describable class is subclassed, make it also Describable
-      module Inherited
-        def inherited(cls)
-          super(cls)
-          cls.extend Inherited
-          describe_as_type = @describe_as_type
-          cls.class_eval do
-            @describe_as_type = describe_as_type
-          end
-          if Jenkins::Plugin.instance
-            Jenkins::Plugin.instance.register_describable(cls, describe_as_type)
-          end
-        end
+      module ClassMethods
+        include DescribeAs
       end
-
-      module Included
-        def included(mod)
-          super
-          if mod.is_a? Class
-            mod.extend DescribeAs
-            mod.extend Inherited
-          else
-            warn "tried to include Describable into a Module. Are you sure?"
-          end
-        end
-      end
-      self.extend Included
     end
   end
 end

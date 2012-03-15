@@ -1,6 +1,12 @@
 require 'java'
 require 'tmpdir'
 
+module Jenkins
+  def self.rspec_ewwww_gross_hack?
+    true
+  end
+end
+
 require 'jenkins/war'
 for path in Dir[File.join(ENV['HOME'], '.jenkins', 'wars', Jenkins::War::VERSION, "**/*.jar")]
   $CLASSPATH << path
@@ -10,6 +16,11 @@ $:.unshift Pathname(__FILE__).dirname.join('../lib')
 
 require 'jenkins/plugin/runtime'
 require 'jenkins/plugin/proxies/proxy_helper'
+
+def puts(msg = nil)
+  require 'erb'
+  super ERB::Util.h(msg) + "<br/>"
+end
 
 module SpecHelper
   # Java does not support opening directory as a File: File.open(".")

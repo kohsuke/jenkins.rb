@@ -2,6 +2,7 @@ require 'pathname'
 
 module Jenkins
   class FilePath
+    include Jenkins::Plugin::Wrapper
     Stat = Struct.new(:size, :mode, :mtime)
 
     attr_reader :natvie
@@ -127,6 +128,10 @@ module Jenkins
 
     # TODO: createTempDir
     # TODO: createTempFile
+
+    def create_launcher(listener)
+      Launcher.new(@native.createLauncher(listener.native))
+    end
 
   private
 

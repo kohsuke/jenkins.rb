@@ -7,16 +7,32 @@ module Jenkins
     # Represents a single build. In general, you won't need this
     #
     class Build
+      include Jenkins::Plugin::Wrapper
+
+      wrapper_for Java.hudson.model.AbstractBuild
 
       # Raised to indicate that a build wrapper halted a build.
       # Raising this does *not* set the build result to error.
       class Halt < Exception; end
 
-
       # the Hudson::Model::AbstractBuild represented by this build
       attr_reader :native
 
-      def initialize(native = nil)
+      # Hash of environment variables that will be added to each process
+      # started as part of this build. E.g.
+      #
+      # build.env['GEM_HOME'] = '/path/to/my/gem/home'
+      #
+      # Note that this is not an exhaustive list of all environment variables,
+      # only those which have been explicitly set by code inside this Ruby
+      # plugin.
+      #
+      # Also, this list does not contain variables that might get set by things
+      # like .profile and .rc files.
+      attr_reader :env
+
+      def initialize(native)
+        super(native)
         @native = native
         @variables = {}
       end
